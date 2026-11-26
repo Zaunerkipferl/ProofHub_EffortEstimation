@@ -1,17 +1,31 @@
 // Minimal JSON-file store for estimations. One file per estimation keeps it
 // easy to back up and avoids a database dependency for an intranet tool.
-import { mkdir, readFile, readdir, rename, rm, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, readdir, rename, writeFile } from 'node:fs/promises';
 import { randomUUID } from 'node:crypto';
 import path from 'node:path';
 import { normalizeEstimation } from './xlsx.js';
 
 const ID_RE = /^[0-9a-f-]{36}$/;
 
+// Deleted estimations are moved to <dataDir>/trash instead of being erased,
+// so a delete can be undone (and recovered by hand later if needed).
 export function createStore(dir) {
-  const ready = mkdir(dir, { recursive: true });
-  const fileFor = (id) => {
+  const trashDir = path.join(path.dirname(dir), 'trash');
+  const ready = Promise.all([mkdir(dir, { recursive: true }), mkdir(trashDir, { recursive: true })]);
+  const checkId = (id) => {
     if (!ID_RE.test(id)) throw Object.assign(new Error('Invalid id'), { status: 400 });
-    return path.join(dir, `${id}.json`);
+    return `${id}.json`;
+  };
+  const fileFor = (id) => path.join(dir, checkId(id));
+  const trashFor = (id) => path.join(trashDir, checkId(id));
+  const move = async (from, to) => {
+    try {
+      await rename(from, to);
+      return true;
+    } catch (err) {
+      if (err.code === 'ENOENT') return false;
+      throw err;
+    }
   };
 
   async function read(id) {
@@ -71,9 +85,16 @@ export function createStore(dir) {
       if (!existing) return null;
       return write({ ...existing, proofhub });
     },
+    /** Moves the estimation to the trash. Returns false if it does not exist. */
     async remove(id) {
       await ready;
-      await rm(fileFor(id), { force: true });
+      return move(fileFor(id), trashFor(id));
+    },
+    /** Brings a deleted estimation back from the trash. Returns it, or null. */
+    async restore(id) {
+      await ready;
+      if (!(await move(trashFor(id), fileFor(id)))) return null;
+      return read(id);
     },
   };
 }

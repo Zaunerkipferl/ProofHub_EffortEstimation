@@ -57,12 +57,47 @@ h1, h2, p { margin: 0; }
 }
 .sidebar-head { padding: 0 4px 12px; }
 .search { width: 100%; margin-bottom: 8px; }
-.saved-list { background: transparent; --md-list-container-color: transparent; padding: 0; }
-.saved-list md-list-item { border-radius: 28px; --md-list-item-container-shape: 28px; }
-.saved-list md-list-item[aria-current='true'] {
+.saved-list { display: flex; flex-direction: column; gap: 2px; }
+.saved-row {
+  display: flex;
+  align-items: center;
+  border-radius: 28px;
+  --md-list-item-container-color: transparent;
+}
+.saved-row md-list-item { flex: 1; min-width: 0; border-radius: 28px; --md-list-item-container-shape: 28px; }
+.saved-row[aria-current='true'] {
   background: var(--md-sys-color-secondary-container);
   --md-list-item-label-text-color: var(--md-sys-color-on-secondary-container);
 }
+/* Delete button: shown on hover/focus with a mouse, always on touch screens */
+.saved-delete { flex: none; margin-right: 4px; opacity: 0; transition: opacity 0.15s; }
+.saved-row:hover .saved-delete,
+.saved-row:focus-within .saved-delete,
+.saved-row[aria-current='true'] .saved-delete { opacity: 1; }
+@media (hover: none) { .saved-delete { opacity: 1; } }
+
+/* Destructive actions */
+md-text-button.danger {
+  --md-text-button-label-text-color: var(--md-sys-color-error);
+  --md-text-button-icon-color: var(--md-sys-color-error);
+  --md-text-button-hover-label-text-color: var(--md-sys-color-error);
+  --md-text-button-hover-icon-color: var(--md-sys-color-error);
+  --md-text-button-hover-state-layer-color: var(--md-sys-color-error);
+  --md-text-button-focus-label-text-color: var(--md-sys-color-error);
+  --md-text-button-focus-icon-color: var(--md-sys-color-error);
+  --md-text-button-pressed-label-text-color: var(--md-sys-color-error);
+  --md-text-button-pressed-icon-color: var(--md-sys-color-error);
+  --md-text-button-pressed-state-layer-color: var(--md-sys-color-error);
+}
+md-filled-button.danger {
+  --md-filled-button-container-color: var(--md-sys-color-error);
+  --md-filled-button-label-text-color: var(--md-sys-color-on-error);
+  --md-filled-button-hover-label-text-color: var(--md-sys-color-on-error);
+  --md-filled-button-focus-label-text-color: var(--md-sys-color-on-error);
+  --md-filled-button-pressed-label-text-color: var(--md-sys-color-on-error);
+}
+.saved-delete:hover { --md-icon-button-hover-icon-color: var(--md-sys-color-error); }
+[hidden] { display: none !important; }
 .empty { padding: 16px 8px; color: var(--md-sys-color-on-surface-variant); }
 .scrim { display: none; }
 
@@ -156,7 +191,22 @@ md-outlined-select { min-width: 0; }
   transition: opacity 0.15s, transform 0.15s;
   z-index: 50;
 }
-.snackbar.show { opacity: 1; transform: translate(-50%, 0); }
+.snackbar.show { opacity: 1; transform: translate(-50%, 0); pointer-events: auto; }
+.snackbar { display: flex; align-items: center; gap: 16px; }
+.snackbar-action {
+  flex: none;
+  margin: -8px -8px -8px 0;
+  padding: 8px 12px;
+  border: 0;
+  border-radius: 20px;
+  background: transparent;
+  color: var(--md-sys-color-inverse-primary);
+  cursor: pointer;
+}
+.snackbar-action:hover, .snackbar-action:focus-visible {
+  background: color-mix(in srgb, var(--md-sys-color-inverse-primary) 12%, transparent);
+  outline: none;
+}
 .snackbar.error { background: var(--md-sys-color-error-container); color: var(--md-sys-color-on-error-container); }
 
 /* ---------- Responsive ---------- */

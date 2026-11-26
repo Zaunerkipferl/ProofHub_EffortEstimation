@@ -76,8 +76,11 @@ export function createApp({ dataDir, mountFrontend, onShutdown, version = '0.0.0
     est ? res.json(est) : res.status(404).json({ error: 'Not found' });
   });
   app.delete('/api/estimations/:id', async (req, res) => {
-    await store.remove(req.params.id);
-    res.status(204).end();
+    (await store.remove(req.params.id)) ? res.status(204).end() : res.status(404).json({ error: 'Not found' });
+  });
+  app.post('/api/estimations/:id/restore', async (req, res) => {
+    const est = await store.restore(req.params.id);
+    est ? res.json(est) : res.status(404).json({ error: 'Not found in trash' });
   });
   app.get('/api/estimations/:id/xlsx', async (req, res) => {
     const est = await store.get(req.params.id);

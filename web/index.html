@@ -41,7 +41,7 @@
         <md-outlined-text-field id="search" class="search" placeholder="Search" type="search">
           <md-icon slot="leading-icon">search</md-icon>
         </md-outlined-text-field>
-        <md-list id="savedList" class="saved-list"></md-list>
+        <div id="savedList" class="saved-list" role="list"></div>
         <p id="savedEmpty" class="empty md-typescale-body-medium" hidden>Nothing saved yet.</p>
       </aside>
       <div class="scrim" id="scrim" hidden></div>
@@ -54,6 +54,7 @@
               <p class="md-typescale-body-medium muted" id="statusLine">New estimation, not saved yet</p>
             </div>
             <div class="card-actions">
+              <md-text-button id="deleteBtn" class="danger" hidden><md-icon slot="icon">delete</md-icon>Delete</md-text-button>
               <md-outlined-button id="saveBtn"><md-icon slot="icon">save</md-icon>Save</md-outlined-button>
               <md-filled-button id="exportBtn" class="cta"><md-icon slot="icon">download</md-icon>Export Excel</md-filled-button>
             </div>
@@ -126,7 +127,10 @@
       </div>
     </md-dialog>
 
-    <div class="snackbar md-typescale-body-medium" id="snackbar" role="status" aria-live="polite"></div>
+    <div class="snackbar md-typescale-body-medium" id="snackbar" role="status" aria-live="polite">
+      <span id="snackbarText"></span>
+      <button type="button" id="snackbarAction" class="snackbar-action md-typescale-label-large" hidden></button>
+    </div>
 
     <script type="module" src="./main.js"></script>
   </body>

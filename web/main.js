@@ -134,6 +134,9 @@ const fmt = (n) =>
     ? '–'
     : new Intl.NumberFormat(undefined, { maximumFractionDigits: 2 }).format(n);
 
+/** "1 day", "2.5 days" */
+const count = (n, unit) => `${fmt(n)} ${n === 1 ? unit : `${unit}s`}`;
+
 const toNum = (v) => {
   if (v === '' || v === null || v === undefined) return null;
   const n = Number(String(v).replace(',', '.'));
@@ -169,20 +172,32 @@ async function api(url, options = {}) {
 }
 
 let snackTimer;
-function toast(message, isError = false) {
+let snackAction = null;
+/** Shows a message; `action` = { label, onClick } adds a button (e.g. Undo). */
+function toast(message, isError = false, action = null) {
   const el = $('snackbar');
-  el.textContent = message;
+  const btn = $('snackbarAction');
+  $('snackbarText').textContent = message;
+  snackAction = action?.onClick ?? null;
+  btn.hidden = !action;
+  btn.textContent = action?.label ?? '';
   el.classList.toggle('error', isError);
   el.classList.add('show');
   clearTimeout(snackTimer);
-  snackTimer = setTimeout(() => el.classList.remove('show'), isError ? 6000 : 3000);
+  snackTimer = setTimeout(hideToast, action ? 8000 : isError ? 6000 : 3000);
+}
+function hideToast() {
+  clearTimeout(snackTimer);
+  snackAction = null;
+  $('snackbar').classList.remove('show');
 }
 
-function confirmDialog(headline, text, okLabel = 'OK') {
+function confirmDialog(headline, text, okLabel = 'OK', { danger = false } = {}) {
   const dialog = $('confirmDialog');
   $('confirmHeadline').textContent = headline;
   $('confirmText').textContent = text;
   $('confirmOk').textContent = okLabel;
+  $('confirmOk').classList.toggle('danger', danger);
   dialog.returnValue = '';
   dialog.show();
   return new Promise((resolve) => {
@@ -232,17 +247,18 @@ function renderStatus() {
   else status = `Saved ${new Date(state.updatedAt).toLocaleString()}`;
   if (dirty && state.id) status += ' · unsaved changes';
   $('statusLine').textContent = status;
+  $('deleteBtn').hidden = !state.id;
   document.title = `${dirty ? '• ' : ''}${parts.join(' - ') || 'Effort Estimation'}`;
 }
 
 function renderSummary() {
   const total = state.requirements.reduce((s, r) => s + (r.estimate ?? 0), 0);
   const factor = state.factor ?? 1;
-  $('totalDays').textContent = `${fmt(total)} days`;
-  $('totalWeeks').textContent = `${fmt(total / 5)} weeks`;
+  $('totalDays').textContent = count(total, 'day');
+  $('totalWeeks').textContent = count(total / 5, 'week');
   $('factorLabel').textContent = `× ${fmt(factor)} (plus additional effort)`;
-  $('factorDays').textContent = `${fmt(total * factor)} days`;
-  $('factorWeeks').textContent = `${fmt((total * factor) / 5)} weeks`;
+  $('factorDays').textContent = count(total * factor, 'day');
+  $('factorWeeks').textContent = count((total * factor) / 5, 'week');
   $('deliveryOut').textContent = fmt(state.deliveryWeeks);
 }
 
@@ -335,22 +351,29 @@ function renderSaved() {
   const draft = readDraft();
   list.replaceChildren(
     ...items.map((s) => {
+      const row = document.createElement('div');
+      row.className = 'saved-row';
+      row.setAttribute('role', 'listitem');
+      if (s.id === state.id) row.setAttribute('aria-current', 'true');
       const li = document.createElement('md-list-item');
       li.type = 'button';
       li.dataset.id = s.id;
-      if (s.id === state.id) li.setAttribute('aria-current', 'true');
       const hasDraft = draft?.state?.id === s.id;
       const icon = hasDraft ? 'edit_note' : s.proofhub ? 'cloud_done' : 'description';
       li.innerHTML = `
         <md-icon slot="start">${icon}</md-icon>
         <div slot="headline"></div>
         <div slot="supporting-text"></div>`;
-      li.querySelector('[slot=headline]').textContent = [s.customer, s.project].filter(Boolean).join(' - ') || 'Untitled';
+      li.querySelector('[slot=headline]').textContent = estimationName(s);
       li.querySelector('[slot=supporting-text]').textContent = hasDraft
         ? `Unsaved changes · ${when(draft.savedAt)}`
-        : `${fmt(s.totalDays)} days · edited ${when(s.updatedAt)}`;
+        : `${count(s.totalDays, 'day')} · edited ${when(s.updatedAt)}`;
       li.title = `Last saved ${new Date(s.updatedAt).toLocaleString()}`;
-      return li;
+      const del = iconButton('delete', `Delete ${estimationName(s)}`, 'delete-saved');
+      del.classList.add('saved-delete');
+      del.dataset.deleteId = s.id;
+      row.append(li, del);
+      return row;
     }),
   );
   $('savedEmpty').hidden = items.length > 0;
@@ -491,6 +514,51 @@ function addRequirement() {
   markDirty();
 }
 
+const estimationName = (e) => [e.customer, e.project].filter(Boolean).join(' - ') || 'Untitled';
+
+async function deleteEstimation(id) {
+  const summary = saved.find((s) => s.id === id) ?? (state.id === id ? state : null);
+  const name = summary ? estimationName(summary) : 'this estimation';
+  const isOpen = state.id === id;
+  let text = `“${name}” will be removed from the saved estimations for everyone using this tool. Excel files you already exported are not affected.`;
+  if (isOpen && dirty) text += ' Your unsaved changes to it will be lost.';
+  if (summary?.proofhub) text += ' The copy in ProofHub is not deleted.';
+  if (!(await confirmDialog('Delete estimation?', text, 'Delete', { danger: true }))) return;
+
+  try {
+    await api(`/api/estimations/${id}`, { method: 'DELETE' });
+  } catch (err) {
+    // Already gone (deleted elsewhere): just refresh the list.
+    if (!/not found/i.test(err.message)) return toast(`Delete failed: ${err.message}`, true);
+  }
+
+  if (readDraft()?.state?.id === id) clearDraft();
+  if (isOpen) {
+    state = blankEstimation();
+    memory.set(KEYS.lastOpen, null);
+    dirty = false;
+    renderAll();
+  }
+  await loadSaved();
+  toast(`Deleted “${name}”.`, false, { label: 'Undo', onClick: () => restoreEstimation(id, isOpen) });
+}
+
+async function restoreEstimation(id, reopen) {
+  try {
+    const record = await api(`/api/estimations/${id}/restore`, { method: 'POST' });
+    // Reopen it only if the user has not started something else meanwhile.
+    if (reopen && !state.id && !dirty) {
+      state = fromRecord(record);
+      memory.set(KEYS.lastOpen, id);
+      renderAll();
+    }
+    await loadSaved();
+    toast(`Restored “${estimationName(record)}”.`);
+  } catch (err) {
+    toast(`Could not restore: ${err.message}`, true);
+  }
+}
+
 // Sidebar (mobile drawer)
 function closeSidebar() {
   $('sidebar').classList.remove('open');
@@ -569,8 +637,16 @@ $('importInput').addEventListener('change', (e) => {
 });
 $('search').addEventListener('input', renderSaved);
 $('savedList').addEventListener('click', (e) => {
+  const del = e.target.closest('[data-delete-id]');
+  if (del) return deleteEstimation(del.dataset.deleteId);
   const item = e.target.closest('md-list-item[data-id]');
   if (item) openSaved(item.dataset.id);
+});
+$('deleteBtn').addEventListener('click', () => state.id && deleteEstimation(state.id));
+$('snackbarAction').addEventListener('click', () => {
+  const action = snackAction;
+  hideToast();
+  action?.();
 });
 $('navToggle').addEventListener('click', () => {
   const open = $('sidebar').classList.toggle('open');

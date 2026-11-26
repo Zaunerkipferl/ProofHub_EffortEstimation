@@ -15,6 +15,7 @@ app needs no internet access at runtime.
 | --- | --- |
 | 1. Create an estimation from scratch and export it as `.xlsx` | ✅ done |
 | Save estimations on the server, reopen and edit them, search the list | ✅ done |
+| Delete estimations (with Undo; deleted files go to `<data>/trash`) | ✅ done |
 | Import an existing estimation `.xlsx` into the editor | ✅ done |
 | Light/dark switch; remembers the mode, the last opened estimation and unsaved edits (per browser) | ✅ done |
 | 2. Upload the sheet to a ProofHub item | ⏳ placeholder (`server/proofhub.js`) |
@@ -115,6 +116,7 @@ web/theme.css       All theme colors (M3 tokens) — adjust the brand colors her
 | `POST` | `/api/export` | Estimation JSON → `.xlsx` download |
 | `POST` | `/api/import` | Multipart `file` (`.xlsx`) → estimation JSON |
 | `GET/POST` | `/api/estimations` | List / create |
-| `GET/PUT/DELETE` | `/api/estimations/:id` | Read / update / delete |
+| `GET/PUT/DELETE` | `/api/estimations/:id` | Read / update / delete (moves to trash) |
+| `POST` | `/api/estimations/:id/restore` | Undo a delete (moves it back from the trash) |
 | `GET` | `/api/estimations/:id/xlsx` | Download a saved estimation |
 | `POST/PUT` | `/api/estimations/:id/proofhub` | Upload / update in ProofHub (returns 501 for now) |
