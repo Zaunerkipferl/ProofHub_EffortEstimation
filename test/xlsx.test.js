@@ -61,3 +61,16 @@ test('totals move down when there are more requirements than template rows', asy
 test('file name is filesystem safe', () => {
   assert.equal(fileName({ customer: 'ACME / Inc.', project: 'Line 3' }), 'EffortEstimation_ACME_Inc_Line_3.xlsx');
 });
+
+test('totals, weeks and delivery time are shown without decimals', async () => {
+  const buf = await buildWorkbook({
+    customer: 'A', project: 'B', factor: 1.5, deliveryWeeks: 16,
+    requirements: [{ puc: 'x', estimate: 28.5 }, { puc: 'y', estimate: 0.5 }],
+  });
+  const wb = new ExcelJS.Workbook();
+  await wb.xlsx.load(buf);
+  const ws = wb.getWorksheet('REQ');
+  for (const ref of ['E17', 'F17', 'E18', 'F18', 'E20']) assert.equal(ws.getCell(ref).numFmt, '0', ref);
+  assert.equal(ws.getCell('E18').value.result, 43.5, 'the exact value is kept, only the display is rounded');
+  assert.equal(ws.getCell('E5').numFmt, '0.0#', 'single estimates keep their half days');
+});

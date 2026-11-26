@@ -29,6 +29,9 @@ const verdana = (size = 10, bold = false) => ({ name: 'Verdana', size, bold });
 const calibri = (bold = false, color) => ({ name: 'Calibri', size: 11, bold, ...(color ? { color: { argb: color } } : {}) });
 const TOTAL_FILL = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF2F2F2' } };
 const TOTAL_FONT_COLOR = 'FFFA7D00';
+// Totals, weeks and delivery time are shown without decimals (display only;
+// the formulas keep calculating with the exact values).
+const WHOLE = '0';
 
 /** Normalised, safe copy of an estimation payload. */
 export function normalizeEstimation(input = {}) {
@@ -173,13 +176,13 @@ export async function buildWorkbook(input) {
   const weeksStyle = (cell) => {
     cell.font = verdana(10);
     cell.alignment = { horizontal: 'right', vertical: 'top', wrapText: true };
-    cell.numFmt = '0.0';
+    cell.numFmt = WHOLE;
   };
 
   ws.getCell(`D${totalRow}`).value = 'Total Days Development';
   totalStyle(ws.getCell(`D${totalRow}`));
   ws.getCell(`E${totalRow}`).value = { formula: `SUM(${sumRange})`, result: totalDays };
-  totalStyle(ws.getCell(`E${totalRow}`), '0.0');
+  totalStyle(ws.getCell(`E${totalRow}`), WHOLE);
   ws.getCell(`F${totalRow}`).value = { formula: `E${totalRow}/5`, result: totalDays / 5 };
   weeksStyle(ws.getCell(`F${totalRow}`));
 
@@ -189,7 +192,7 @@ export async function buildWorkbook(input) {
     formula: `E${totalRow} * ${est.factor}`,
     result: totalDays * est.factor,
   };
-  totalStyle(ws.getCell(`E${factorRow}`), '0.0');
+  totalStyle(ws.getCell(`E${factorRow}`), WHOLE);
   ws.getCell(`F${factorRow}`).value = { formula: `E${factorRow}/5`, result: (totalDays * est.factor) / 5 };
   weeksStyle(ws.getCell(`F${factorRow}`));
 
@@ -201,7 +204,7 @@ export async function buildWorkbook(input) {
   dv.value = est.deliveryWeeks;
   dv.font = verdana(10, true);
   dv.alignment = { vertical: 'top', wrapText: true };
-  dv.numFmt = '0.0';
+  dv.numFmt = WHOLE;
   ws.getRow(deliveryRow).height = 25.2;
 
   // --- Data validation (same as template) ---
