@@ -36,7 +36,8 @@ h1, h2, p { margin: 0; }
   width: 28px; height: 28px; border-radius: 6px; flex: none;
   background: var(--brand-navy) url('/favicon.svg') center / cover;
 }
-.brand-title { font: 500 1.25rem/1 var(--md-ref-typeface-brand); letter-spacing: 0.01em; white-space: nowrap; }
+.brand-title { font: 500 1.25rem/1.2 var(--md-ref-typeface-brand); letter-spacing: 0.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+@media (max-width: 420px) { .brand-title { display: none; } .app-bar-actions { gap: 0; } }
 .app-bar-actions { display: flex; gap: 4px; }
 .nav-toggle { display: none; }
 
@@ -128,7 +129,8 @@ md-filled-button.danger {
 }
 .card-head h1 { overflow-wrap: anywhere; }
 .card-head p { margin-top: 4px; }
-.card-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.card-head > div:first-child { flex: 1 1 320px; min-width: 0; }
+.card-actions { display: flex; flex-wrap: wrap; gap: 8px; flex: 0 1 auto; max-width: 100%; }
 .proofhub .card-head { margin-bottom: 0; align-items: center; }
 
 .grid { display: grid; gap: 16px; }
@@ -279,3 +281,38 @@ md-filled-button.cta {
 }
 /* Headings use Ubuntu, like the website */
 h1, h2, .brand-title, .stat-value { font-family: var(--md-ref-typeface-brand); }
+
+/* ---------- Excel file location ---------- */
+.file-line {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  margin-top: 6px;
+  color: var(--md-sys-color-on-surface-variant);
+}
+.file-line md-icon { --md-icon-size: 20px; color: var(--md-sys-color-primary); }
+.file-path {
+  font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace;
+  font-size: 0.8125rem;
+  overflow-wrap: anywhere;
+  min-width: 0;
+  flex: 1 1 260px;
+}
+.file-line md-icon-button { --md-icon-button-state-layer-height: 36px; --md-icon-button-state-layer-width: 36px; }
+
+.folder-dialog { max-width: min(680px, calc(100vw - 32px)); width: 100%; }
+.folder-dialog-content { display: flex; flex-direction: column; gap: 16px; }
+.folder-row { display: flex; gap: 8px; align-items: center; }
+.folder-row md-outlined-text-field { flex: 1; min-width: 0; }
+.folder-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px;
+  border-radius: 12px;
+  background: var(--md-sys-color-surface-container);
+}
+.folder-preview code { font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace; overflow-wrap: anywhere; }
+.error-text { color: var(--md-sys-color-error); }
+@media (max-width: 560px) { .folder-row { flex-direction: column; align-items: stretch; } }

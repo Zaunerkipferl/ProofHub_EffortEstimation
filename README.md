@@ -16,6 +16,7 @@ app needs no internet access at runtime.
 | 1. Create an estimation from scratch and export it as `.xlsx` | ✅ done |
 | Save estimations on the server, reopen and edit them, search the list | ✅ done |
 | Delete estimations (with Undo; deleted files go to `<data>/trash`) | ✅ done |
+| Save each estimation as `.xlsx` into your own folder, e.g. `…\Documents\Projekte\<Customer>\<Project>` | ✅ done |
 | Import an existing estimation `.xlsx` into the editor | ✅ done |
 | Light/dark switch; remembers the mode, the last opened estimation and unsaved edits (per browser) | ✅ done |
 | 2. Upload the sheet to a ProofHub item | ⏳ placeholder (`server/proofhub.js`) |
@@ -62,6 +63,25 @@ Notes:
   needs administrator approval).
 - Autostart starts the app when you log in, not before login. For a shared
   server that must run without anyone logged in, use Docker or a Windows service.
+
+## Excel folder
+
+The first time you save, the tool asks where Excel files should go (suggested:
+`%OneDriveCommercial%\Documents\Projekte`). From then on every save also writes
+
+```
+<folder>\<Customer>\<Project>\EffortEstimation_<Customer>_<Project>.xlsx
+```
+
+The subfolder pattern (`{customer}\{project}` by default) and the folder can be
+changed with the folder button in the top bar, or turned off. The path is shown
+under the title with *Open folder* and *Copy path*. Names are cleaned for
+Windows (`\ / : * ? " < > |` become `_`). If the file is open in Excel, the
+estimation is still saved in the tool and you are told to close the file and
+save again. The setting is stored in `<data>/settings.json`.
+
+The server writes the files, so the folder is on the PC running Effort
+Estimation. *Browse…* and *Open folder* are only offered in a browser on that PC.
 
 ## Run with Node.js
 
@@ -120,6 +140,7 @@ web/theme.css       All theme colors (M3 tokens) — adjust the brand colors her
 | Method | Path | Description |
 | --- | --- | --- |
 | `GET` | `/api/health` | App id and version |
+| `GET/PUT` | `/api/settings` | Excel folder settings |
 | `GET` | `/api/config` | Requirement types and whether ProofHub is configured |
 | `POST` | `/api/export` | Estimation JSON → `.xlsx` download |
 | `POST` | `/api/import` | Multipart `file` (`.xlsx`) → estimation JSON |

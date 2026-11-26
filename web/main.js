@@ -110,6 +110,7 @@ function blankEstimation() {
     deliveryWeeks: 8,
     autoNumber: true,
     proofhub: null,
+    excelFile: null,
     updatedAt: null,
     requirements: [
       req({ puc: 'Development Concept' }),
@@ -248,6 +249,7 @@ function renderStatus() {
   if (dirty && state.id) status += ' · unsaved changes';
   $('statusLine').textContent = status;
   $('deleteBtn').hidden = !state.id;
+  renderFileLine();
   document.title = `${dirty ? '• ' : ''}${parts.join(' - ') || 'Effort Estimation'}`;
 }
 
@@ -368,7 +370,7 @@ function renderSaved() {
       li.querySelector('[slot=supporting-text]').textContent = hasDraft
         ? `Unsaved changes · ${when(draft.savedAt)}`
         : `${count(s.totalDays, 'day')} · edited ${when(s.updatedAt)}`;
-      li.title = `Last saved ${new Date(s.updatedAt).toLocaleString()}`;
+      li.title = `Last saved ${new Date(s.updatedAt).toLocaleString()}${s.excelFile ? `\n${s.excelFile}` : ''}`;
       const del = iconButton('delete', `Delete ${estimationName(s)}`, 'delete-saved');
       del.classList.add('saved-delete');
       del.dataset.deleteId = s.id;
@@ -403,6 +405,10 @@ function validate() {
 
 async function save() {
   if (!validate()) return false;
+  if (excelSettings && !excelSettings.excelFolderAsked) {
+    // First save: ask where the Excel files should go. Cancel = save without asking again now.
+    await openFolderDialog({ firstTime: true });
+  }
   try {
     const body = JSON.stringify(payload());
     const record = state.id
@@ -411,10 +417,19 @@ async function save() {
     state.id = record.id;
     state.updatedAt = record.updatedAt;
     state.proofhub = record.proofhub;
+    state.excelFile = record.excelFile ?? null;
     memory.set(KEYS.lastOpen, record.id);
     markDirty(false);
+    renderFileLine();
     await loadSaved();
-    toast('Estimation saved.');
+    if (record.excelError) {
+      toast(`Saved in the tool, but the Excel file was not written. ${record.excelError}`, true);
+    } else if (excelSettings?.excelFolder && record.excelFile) {
+      toast(`Saved · ${fileNameOf(record.excelFile)}`, false,
+        excelSettings.local ? { label: 'Open folder', onClick: revealExcelFile } : null);
+    } else {
+      toast('Estimation saved.');
+    }
     return true;
   } catch (err) {
     toast(`Saving failed: ${err.message}`, true);
@@ -559,6 +574,153 @@ async function restoreEstimation(id, reopen) {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Excel folder: where saved estimations are written as .xlsx
+// ---------------------------------------------------------------------------
+let excelSettings = null;
+
+async function loadExcelSettings() {
+  try {
+    excelSettings = await api('/api/settings');
+  } catch (err) {
+    excelSettings = null;
+    console.warn('Settings unavailable:', err.message);
+  }
+}
+
+const fileNameOf = (p) => p.split(/[\\/]/).pop();
+
+function renderFileLine() {
+  const file = state.excelFile;
+  $('fileLine').hidden = !file;
+  if (!file) return;
+  $('filePath').textContent = file;
+  $('filePath').title = file;
+  $('revealBtn').hidden = !excelSettings?.local || !state.id;
+}
+
+async function revealExcelFile() {
+  if (!state.id) return;
+  try {
+    await api('/api/desktop/reveal', { method: 'POST', body: JSON.stringify({ id: state.id }) });
+  } catch (err) {
+    toast(`Could not open the folder: ${err.message}`, true);
+  }
+}
+
+async function copyExcelPath() {
+  try {
+    await navigator.clipboard.writeText(state.excelFile);
+    toast('Path copied.');
+  } catch {
+    // Clipboard API needs https or localhost; fall back to selecting the text.
+    const range = document.createRange();
+    range.selectNodeContents($('filePath'));
+    getSelection().removeAllRanges();
+    getSelection().addRange(range);
+    toast('Press Ctrl+C to copy the selected path.');
+  }
+}
+
+let previewTimer;
+function updateFolderPreview() {
+  clearTimeout(previewTimer);
+  previewTimer = setTimeout(async () => {
+    const folder = $('folderInput').value.trim();
+    if (!folder) {
+      $('folderPreview').textContent = 'No Excel files will be saved.';
+      return;
+    }
+    try {
+      const { path: p } = await api('/api/settings/preview', {
+        method: 'POST',
+        body: JSON.stringify({
+          settings: { excelFolder: folder.replace(/^"(.*)"$/, '$1'), subfolderPattern: $('patternInput').value },
+          estimation: { customer: state.customer || 'Customer', project: state.project || 'Project' },
+        }),
+      });
+      $('folderPreview').textContent = p ?? '–';
+    } catch (err) {
+      $('folderPreview').textContent = err.message;
+    }
+  }, 150);
+}
+
+/**
+ * Asks for the Excel folder. firstTime: shown on the first save
+ * ("Don't save Excel files" / "Save here"); otherwise it is the settings dialog.
+ */
+function openFolderDialog({ firstTime = false } = {}) {
+  const dialog = $('folderDialog');
+  const cfg = excelSettings ?? {};
+  $('folderHeadline').textContent = firstTime ? 'Where should the Excel files be saved?' : 'Excel files';
+  $('folderIntro').textContent = firstTime
+    ? 'Each time you save, the estimation is also written as an Excel file into this folder. You can change this later with the folder button in the top bar.'
+    : 'Each time you save, the estimation is also written as an Excel file into this folder. Leave the folder empty to only keep estimations in the tool.';
+  $('folderInput').value = cfg.excelFolder || cfg.suggestedFolder || '';
+  $('patternInput').value = cfg.subfolderPattern ?? '{customer}\\{project}';
+  $('patternInput').value = $('patternInput').value.replaceAll('/', cfg.pathSeparator ?? '\\');
+  $('browseBtn').hidden = !cfg.canBrowse;
+  $('folderOffBtn').hidden = !firstTime && !cfg.excelFolder;
+  $('folderOffBtn').textContent = firstTime ? "Don't save Excel files" : 'Turn off';
+  $('folderOkBtn').textContent = firstTime ? 'Save here' : 'Save';
+  $('folderError').hidden = true;
+  updateFolderPreview();
+
+  return new Promise((resolve) => {
+    let result = 'cancel';
+    const submit = async (patch, outcome) => {
+      try {
+        excelSettings = await api('/api/settings', { method: 'PUT', body: JSON.stringify({ ...patch, excelFolderAsked: true }) });
+        result = outcome;
+        dialog.close();
+      } catch (err) {
+        $('folderError').textContent = err.message;
+        $('folderError').hidden = false;
+      }
+    };
+    const onOk = () => submit({ excelFolder: $('folderInput').value, subfolderPattern: $('patternInput').value }, 'saved');
+    const onOff = () => submit({ excelFolder: '' }, 'off');
+    const onCancel = () => dialog.close();
+    const onBrowse = async () => {
+      $('browseBtn').disabled = true;
+      try {
+        const { folder } = await api('/api/desktop/pick-folder', {
+          method: 'POST',
+          body: JSON.stringify({ initial: $('folderInput').value.trim() }),
+        });
+        if (folder) {
+          $('folderInput').value = folder;
+          updateFolderPreview();
+        }
+      } catch (err) {
+        $('folderError').textContent = `${err.message} You can type or paste the path instead.`;
+        $('folderError').hidden = false;
+      } finally {
+        $('browseBtn').disabled = false;
+      }
+    };
+    const controls = [['folderOkBtn', onOk], ['folderOffBtn', onOff], ['folderCancelBtn', onCancel], ['browseBtn', onBrowse]];
+    controls.forEach(([id, fn]) => $(id).addEventListener('click', fn));
+    dialog.addEventListener('closed', () => {
+      controls.forEach(([id, fn]) => $(id).removeEventListener('click', fn));
+      resolve(result);
+    }, { once: true });
+    dialog.show();
+  });
+}
+
+$('folderInput').addEventListener('input', updateFolderPreview);
+$('patternInput').addEventListener('input', updateFolderPreview);
+$('settingsBtn').addEventListener('click', async () => {
+  if (!excelSettings) await loadExcelSettings();
+  const result = await openFolderDialog();
+  if (result === 'saved') toast(excelSettings.excelFolder ? 'Excel folder saved. It is used from the next save on.' : 'Excel files will not be saved.');
+  if (result === 'off') toast('Excel files will not be saved anymore.');
+});
+$('revealBtn').addEventListener('click', revealExcelFile);
+$('copyPathBtn').addEventListener('click', copyExcelPath);
+
 // Sidebar (mobile drawer)
 function closeSidebar() {
   $('sidebar').classList.remove('open');
@@ -678,6 +840,7 @@ window.addEventListener('pagehide', () => {
   } catch (err) {
     toast(`Server not reachable: ${err.message}`, true);
   }
+  await loadExcelSettings();
   await restoreSession();
   renderAll();
   loadSaved();

@@ -25,6 +25,7 @@
         <span class="brand-title">Effort Estimation</span>
       </div>
       <div class="app-bar-actions">
+        <md-icon-button id="settingsBtn" title="Excel folder settings" aria-label="Excel folder settings"><md-icon>folder_managed</md-icon></md-icon-button>
         <md-icon-button id="themeBtn" title="Switch to dark mode" aria-label="Switch to dark mode"><md-icon>dark_mode</md-icon></md-icon-button>
         <md-icon-button id="newBtn" title="New estimation" aria-label="New estimation"><md-icon>note_add</md-icon></md-icon-button>
         <md-icon-button id="importBtn" title="Import Excel file" aria-label="Import Excel file"><md-icon>upload_file</md-icon></md-icon-button>
@@ -52,6 +53,12 @@
             <div>
               <h1 class="md-typescale-headline-small" id="sheetTitle">Requirements Specification for: …</h1>
               <p class="md-typescale-body-medium muted" id="statusLine">New estimation, not saved yet</p>
+              <div class="file-line md-typescale-body-medium" id="fileLine" hidden>
+                <md-icon aria-hidden="true">description</md-icon>
+                <span class="file-path" id="filePath" title=""></span>
+                <md-text-button id="revealBtn" hidden><md-icon slot="icon">folder_open</md-icon>Open folder</md-text-button>
+                <md-icon-button id="copyPathBtn" title="Copy path" aria-label="Copy path"><md-icon>content_copy</md-icon></md-icon-button>
+              </div>
             </div>
             <div class="card-actions">
               <md-text-button id="deleteBtn" class="danger" hidden><md-icon slot="icon">delete</md-icon>Delete</md-text-button>
@@ -124,6 +131,32 @@
       <div slot="actions">
         <md-text-button form="confirmForm" value="cancel">Cancel</md-text-button>
         <md-filled-button form="confirmForm" value="ok" id="confirmOk">OK</md-filled-button>
+      </div>
+    </md-dialog>
+
+    <md-dialog id="folderDialog" class="folder-dialog">
+      <div slot="headline" id="folderHeadline">Where should the Excel files be saved?</div>
+      <div slot="content" class="folder-dialog-content">
+        <p class="md-typescale-body-medium" id="folderIntro">
+          Each time you save, the estimation is also written as an Excel file into this folder.
+          You can change this later with the folder button in the top bar.
+        </p>
+        <div class="folder-row">
+          <md-outlined-text-field id="folderInput" label="Folder" placeholder="C:\Users\you\Documents\Projekte"></md-outlined-text-field>
+          <md-outlined-button id="browseBtn" hidden>Browse…</md-outlined-button>
+        </div>
+        <md-outlined-text-field id="patternInput" label="Subfolders"
+          supporting-text="{customer} and {project} are replaced by the names. Use \ for nested folders; leave empty for none."></md-outlined-text-field>
+        <div class="folder-preview">
+          <span class="md-typescale-label-medium muted">The file will be saved as</span>
+          <code id="folderPreview" class="md-typescale-body-small">–</code>
+        </div>
+        <p class="md-typescale-body-small error-text" id="folderError" hidden></p>
+      </div>
+      <div slot="actions">
+        <md-text-button id="folderOffBtn">Don't save Excel files</md-text-button>
+        <md-text-button id="folderCancelBtn">Cancel</md-text-button>
+        <md-filled-button id="folderOkBtn">Save here</md-filled-button>
       </div>
     </md-dialog>
 

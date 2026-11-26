@@ -54,12 +54,13 @@ export function createStore(dir) {
       const records = await Promise.all(files.map((f) => read(f.slice(0, -5)).catch(() => null)));
       return records
         .filter(Boolean)
-        .map(({ id, customer, project, updatedAt, proofhub, requirements }) => ({
+        .map(({ id, customer, project, updatedAt, proofhub, excelFile, requirements }) => ({
           id,
           customer,
           project,
           updatedAt,
           proofhub: proofhub ?? null,
+          excelFile: excelFile ?? null,
           totalDays: requirements.reduce((s, r) => s + (r.estimate ?? 0), 0),
         }))
         .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
@@ -84,6 +85,12 @@ export function createStore(dir) {
       const existing = await read(id);
       if (!existing) return null;
       return write({ ...existing, proofhub });
+    },
+    /** Remembers where the Excel copy of this estimation was written last. */
+    async setExcelFile(id, excelFile) {
+      const existing = await read(id);
+      if (!existing) return null;
+      return write({ ...existing, excelFile });
     },
     /** Moves the estimation to the trash. Returns false if it does not exist. */
     async remove(id) {

@@ -5,6 +5,7 @@ import multer from 'multer';
 import path from 'node:path';
 import { REQUIREMENT_TYPES, buildWorkbook, fileName, parseWorkbook } from './xlsx.js';
 import { createStore } from './store.js';
+import { createSettings, excelPathFor, pickFolder, revealInFileManager, suggestedFolder, writeExcelFile } from './excelfolder.js';
 import { proofhubConfig, updateEstimation, uploadEstimation } from './proofhub.js';
 
 export const APP_ID = 'effort-estimation';
@@ -21,6 +22,31 @@ const LOOPBACK = new Set(['127.0.0.1', '::1', '::ffff:127.0.0.1']);
  */
 export function createApp({ dataDir, mountFrontend, onShutdown, version = '0.0.0' }) {
   const store = createStore(path.join(dataDir, 'estimations'));
+  const settings = createSettings(dataDir);
+  const isLocal = (req) => LOOPBACK.has(req.socket.remoteAddress);
+  // Desktop actions: same PC only, and JSON only (a cross-site page cannot send
+  // that without a CORS preflight, which this server never allows).
+  const localOnly = (req, res, next) => {
+    if (!isLocal(req)) return res.status(403).json({ error: 'Only available on the PC running Effort Estimation.' });
+    if (!req.is('application/json')) return res.status(415).json({ error: 'Expected JSON' });
+    next();
+  };
+
+  /** Saves the Excel copy if a folder is configured; never fails the save itself. */
+  const saveExcelCopy = async (record) => {
+    const cfg = await settings.get();
+    let target;
+    try {
+      target = excelPathFor(cfg, record);
+      if (!target) return { ...record, excelError: null };
+      await writeExcelFile(target, await buildWorkbook(record));
+      const updated = record.excelFile === target ? record : await store.setExcelFile(record.id, target);
+      return { ...updated, excelError: null };
+    } catch (err) {
+      console.error('Excel copy failed:', err.message);
+      return { ...record, excelError: err.code === 'FILE_LOCKED' ? err.message : `Could not write ${target ?? 'the Excel file'}: ${err.message}` };
+    }
+  };
   const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 
   const app = express();
@@ -66,14 +92,38 @@ export function createApp({ dataDir, mountFrontend, onShutdown, version = '0.0.0
 
   // Saved estimations
   app.get('/api/estimations', async (_req, res) => res.json(await store.list()));
-  app.post('/api/estimations', async (req, res) => res.status(201).json(await store.create(req.body)));
+  app.post('/api/estimations', async (req, res) => res.status(201).json(await saveExcelCopy(await store.create(req.body))));
   app.get('/api/estimations/:id', async (req, res) => {
     const est = await store.get(req.params.id);
     est ? res.json(est) : res.status(404).json({ error: 'Not found' });
   });
   app.put('/api/estimations/:id', async (req, res) => {
     const est = await store.update(req.params.id, req.body);
-    est ? res.json(est) : res.status(404).json({ error: 'Not found' });
+    est ? res.json(await saveExcelCopy(est)) : res.status(404).json({ error: 'Not found' });
+  });
+
+  // Excel folder settings
+  const settingsResponse = async (req, cfg) => ({
+    ...(cfg ?? (await settings.get())),
+    suggestedFolder: suggestedFolder(),
+    pathSeparator: path.sep,
+    local: isLocal(req), // "Open folder" / "Browse…" are offered only on the server PC
+    canBrowse: isLocal(req) && process.platform === 'win32',
+  });
+  app.get('/api/settings', async (req, res) => res.json(await settingsResponse(req)));
+  app.put('/api/settings', async (req, res) => res.json(await settingsResponse(req, await settings.update(req.body))));
+  app.post('/api/settings/preview', async (req, res) => {
+    const cfg = { ...(await settings.get()), ...req.body.settings };
+    res.json({ path: excelPathFor(cfg, req.body.estimation ?? {}) });
+  });
+  app.post('/api/desktop/pick-folder', localOnly, async (req, res) => {
+    res.json({ folder: await pickFolder(req.body.initial) });
+  });
+  app.post('/api/desktop/reveal', localOnly, async (req, res) => {
+    const est = await store.get(String(req.body.id ?? ''));
+    if (!est?.excelFile) return res.status(404).json({ error: 'No Excel file saved for this estimation yet.' });
+    revealInFileManager(est.excelFile); // only paths the app wrote itself
+    res.json({ ok: true });
   });
   app.delete('/api/estimations/:id', async (req, res) => {
     (await store.remove(req.params.id)) ? res.status(204).end() : res.status(404).json({ error: 'Not found' });

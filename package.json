@@ -1,6 +1,6 @@
 {
   "name": "proofhub-effort-estimation",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "description": "Web tool to create COPA-DATA effort estimation sheets (.xlsx) and later sync them to ProofHub.",
   "type": "module",
