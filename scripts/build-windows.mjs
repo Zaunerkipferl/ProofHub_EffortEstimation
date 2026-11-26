@@ -9,7 +9,6 @@
 // Works on Linux (cross-build) and on Windows. Needs:
 //   - the same Node.js version that is embedded (the SEA blob is version-specific)
 //   - NSIS (makensis) for the installer — Linux: `apt install nsis`, Windows: nsis.sourceforge.io
-//   - optional: osslsigncode (Linux) to strip node.exe's original signature
 import { build } from 'esbuild';
 import { execFileSync, spawnSync } from 'node:child_process';
 import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
@@ -24,6 +23,7 @@ const pkg = JSON.parse(readFileSync(path.join(root, 'package.json'), 'utf8'));
 const VERSION = pkg.version;
 const NODE_VERSION = process.versions.node; // must match the embedded node.exe
 const KEEP = process.argv.includes('--keep'); // keep app.cjs / sea-prep.blob (testing)
+const REQUIRE_INSTALLER = process.argv.includes('--require-installer') || Boolean(process.env.CI);
 
 const step = (msg) => console.log(`\n▸ ${msg}`);
 const IS_WIN = process.platform === 'win32';
@@ -96,16 +96,9 @@ if (!existsSync(nodeExe)) {
 // 5. Executable ---------------------------------------------------------------
 step('Creating EffortEstimation.exe');
 const exe = path.join(out, 'EffortEstimation.exe');
-// Injecting invalidates node.exe's Authenticode signature, so remove it.
-if (!IS_WIN && has('osslsigncode')) {
-  run('osslsigncode', ['remove-signature', '-in', nodeExe, '-out', exe], { stdio: 'ignore' });
-} else if (IS_WIN && has('signtool')) {
-  copyFileSync(nodeExe, exe);
-  run('signtool', ['remove', '/s', exe]);
-} else {
-  console.warn('  (no osslsigncode/signtool found — keeping the now-invalid original signature)');
-  copyFileSync(nodeExe, exe);
-}
+// Injecting invalidates node.exe's Authenticode signature, so remove it
+// (an invalid signature looks worse to Windows than none).
+writeFileSync(exe, stripAuthenticodeSignature(readFileSync(nodeExe)));
 await postject.inject(exe, 'NODE_SEA_BLOB', readFileSync(blob), {
   sentinelFuse: 'NODE_SEA_FUSE_fce680ab2cc467b6e072b8b5df1996b2',
 });
@@ -116,7 +109,9 @@ console.log(`  ${(statSync(exe).size / 1024 / 1024).toFixed(1)} MB, no console w
 step('Building installer (NSIS)');
 const makensis = ['makensis', 'C:\\Program Files (x86)\\NSIS\\makensis.exe', 'C:\\Program Files\\NSIS\\makensis.exe'].find(has);
 if (!makensis) {
-  console.warn('  makensis not found — skipping the installer. Install NSIS to build it.');
+  const msg = 'makensis not found — install NSIS to build the installer.';
+  if (REQUIRE_INSTALLER) throw new Error(msg);
+  console.warn(`  ${msg} Skipping.`);
 } else {
   const setup = path.join(out, `EffortEstimation-Setup-${VERSION}.exe`);
   const flag = IS_WIN ? '/' : '-';
@@ -134,15 +129,40 @@ if (!makensis) {
 if (!KEEP) for (const f of [bundle, blob, seaConfig]) rmSync(f, { force: true });
 step(`Done → ${path.relative(root, out)}`);
 
+/** PE header offsets shared by the helpers below. */
+function peLayout(buf) {
+  const peOffset = buf.readUInt32LE(0x3c);
+  if (buf.toString('latin1', peOffset, peOffset + 4) !== 'PE\0\0') throw new Error('Not a PE file');
+  const optionalHeader = peOffset + 24;
+  const isPE32Plus = buf.readUInt16LE(optionalHeader) === 0x20b;
+  const dataDirectories = optionalHeader + (isPE32Plus ? 112 : 96);
+  return { optionalHeader, dataDirectories };
+}
+
+/**
+ * Removes the Authenticode signature: clears the security data directory and
+ * cuts off the certificate table, which sits at the end of the file.
+ */
+function stripAuthenticodeSignature(buf) {
+  const { dataDirectories } = peLayout(buf);
+  const entry = dataDirectories + 4 * 8; // IMAGE_DIRECTORY_ENTRY_SECURITY
+  const offset = buf.readUInt32LE(entry);
+  const size = buf.readUInt32LE(entry + 4);
+  if (!offset || !size) return buf; // not signed
+  if (offset + size < buf.length - 8) throw new Error('Unexpected data after the certificate table');
+  const out = Buffer.from(buf.subarray(0, offset));
+  out.writeUInt32LE(0, entry);
+  out.writeUInt32LE(0, entry + 4);
+  return out;
+}
+
 /**
  * Switches the PE header from the console to the Windows GUI subsystem so the
  * app runs in the background without a console window.
  */
 function setWindowsGuiSubsystem(file) {
   const buf = readFileSync(file);
-  const peOffset = buf.readUInt32LE(0x3c);
-  if (buf.toString('latin1', peOffset, peOffset + 4) !== 'PE\0\0') throw new Error('Not a PE file');
-  const optionalHeader = peOffset + 24;
+  const { optionalHeader } = peLayout(buf);
   const SUBSYSTEM_OFFSET = 68; // same for PE32 and PE32+
   buf.writeUInt16LE(2, optionalHeader + SUBSYSTEM_OFFSET); // IMAGE_SUBSYSTEM_WINDOWS_GUI
   writeFileSync(file, buf);
