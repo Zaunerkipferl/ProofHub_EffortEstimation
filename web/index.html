@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Effort Estimation</title>
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  </head>
+  <body>
+    <header class="app-bar">
+      <md-icon-button class="nav-toggle" aria-label="Show saved estimations" id="navToggle">
+        <md-icon>menu</md-icon>
+      </md-icon-button>
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <span class="brand-title">Effort Estimation</span>
+      </div>
+      <div class="app-bar-actions">
+        <md-icon-button id="newBtn" title="New estimation" aria-label="New estimation"><md-icon>note_add</md-icon></md-icon-button>
+        <md-icon-button id="importBtn" title="Import Excel file" aria-label="Import Excel file"><md-icon>upload_file</md-icon></md-icon-button>
+        <input type="file" id="importInput" accept=".xlsx" hidden />
+      </div>
+    </header>
+
+    <div class="layout">
+      <aside class="sidebar" id="sidebar">
+        <div class="sidebar-head">
+          <h2 class="md-typescale-title-medium">Saved estimations</h2>
+        </div>
+        <md-outlined-text-field id="search" class="search" placeholder="Search" type="search">
+          <md-icon slot="leading-icon">search</md-icon>
+        </md-outlined-text-field>
+        <md-list id="savedList" class="saved-list"></md-list>
+        <p id="savedEmpty" class="empty md-typescale-body-medium" hidden>Nothing saved yet.</p>
+      </aside>
+      <div class="scrim" id="scrim" hidden></div>
+
+      <main class="content">
+        <section class="card">
+          <div class="card-head">
+            <div>
+              <h1 class="md-typescale-headline-small" id="sheetTitle">Requirements Specification for: …</h1>
+              <p class="md-typescale-body-medium muted" id="statusLine">New estimation, not saved yet</p>
+            </div>
+            <div class="card-actions">
+              <md-outlined-button id="saveBtn"><md-icon slot="icon">save</md-icon>Save</md-outlined-button>
+              <md-filled-button id="exportBtn"><md-icon slot="icon">download</md-icon>Export Excel</md-filled-button>
+            </div>
+          </div>
+          <div class="grid project-grid">
+            <md-outlined-text-field id="customer" label="Customer" required></md-outlined-text-field>
+            <md-outlined-text-field id="project" label="Project" required></md-outlined-text-field>
+            <md-outlined-text-field id="deliveryWeeks" label="Delivery time" suffix-text="weeks" type="number" min="0" step="0.5"
+              supporting-text="From order date, once the technical specification is clear"></md-outlined-text-field>
+            <md-outlined-text-field id="factor" label="Additional effort factor" prefix-text="×" type="number" min="0" step="0.1"
+              supporting-text="Total days × factor"></md-outlined-text-field>
+          </div>
+        </section>
+
+        <section class="card">
+          <div class="card-head">
+            <h2 class="md-typescale-title-large">Requirements</h2>
+            <label class="switch-label md-typescale-body-medium">
+              <md-switch id="autoNumber" selected></md-switch>
+              Auto-number
+            </label>
+          </div>
+          <div class="req-header md-typescale-label-large" aria-hidden="true">
+            <span>No.</span><span>Product use case</span><span>Type</span><span>Description</span><span>Days</span><span></span>
+          </div>
+          <div id="reqList" class="req-list"></div>
+          <div class="req-footer">
+            <md-filled-tonal-button id="addReqBtn"><md-icon slot="icon">add</md-icon>Add requirement</md-filled-tonal-button>
+          </div>
+        </section>
+
+        <section class="card summary" aria-live="polite">
+          <div class="stat">
+            <span class="md-typescale-label-large muted">Total days development</span>
+            <span class="md-typescale-headline-medium stat-value" id="totalDays">0</span>
+            <span class="md-typescale-body-medium muted" id="totalWeeks">0 weeks</span>
+          </div>
+          <div class="stat">
+            <span class="md-typescale-label-large muted" id="factorLabel">× 1 (plus additional effort)</span>
+            <span class="md-typescale-headline-medium stat-value accent" id="factorDays">0</span>
+            <span class="md-typescale-body-medium muted" id="factorWeeks">0 weeks</span>
+          </div>
+          <div class="stat">
+            <span class="md-typescale-label-large muted">Delivery time</span>
+            <span class="md-typescale-headline-medium stat-value" id="deliveryOut">–</span>
+            <span class="md-typescale-body-medium muted">weeks</span>
+          </div>
+        </section>
+
+        <section class="card proofhub">
+          <div class="card-head">
+            <div>
+              <h2 class="md-typescale-title-large">ProofHub</h2>
+              <p class="md-typescale-body-medium muted" id="proofhubText">
+                Attaching the sheet to a ProofHub item and updating it later is coming in the next step.
+              </p>
+            </div>
+            <md-outlined-button id="proofhubBtn" disabled><md-icon slot="icon">cloud_upload</md-icon>Upload to ProofHub</md-outlined-button>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <md-dialog id="confirmDialog">
+      <div slot="headline" id="confirmHeadline"></div>
+      <form slot="content" method="dialog" id="confirmForm"><p id="confirmText" class="md-typescale-body-medium"></p></form>
+      <div slot="actions">
+        <md-text-button form="confirmForm" value="cancel">Cancel</md-text-button>
+        <md-filled-button form="confirmForm" value="ok" id="confirmOk">OK</md-filled-button>
+      </div>
+    </md-dialog>
+
+    <div class="snackbar md-typescale-body-medium" id="snackbar" role="status" aria-live="polite"></div>
+
+    <script type="module" src="./main.js"></script>
+  </body>
+</html>

@@ -1,0 +1,28 @@
+{
+  "name": "proofhub-effort-estimation",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Web tool to create COPA-DATA effort estimation sheets (.xlsx) and later sync them to ProofHub.",
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently -k -n api,web \"node --watch server/index.js\" \"vite\"",
+    "build": "vite build",
+    "start": "node server/index.js",
+    "test": "node --test test/*.test.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "exceljs": "^4.4.0",
+    "express": "^5.1.0",
+    "multer": "^2.0.2"
+  },
+  "devDependencies": {
+    "@fontsource/roboto": "^5.2.0",
+    "@material/web": "^2.5.0",
+    "concurrently": "^9.1.0",
+    "material-symbols": "^0.49.0",
+    "vite": "^6.3.0"
+  }
+}

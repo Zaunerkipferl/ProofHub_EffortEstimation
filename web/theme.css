@@ -1,0 +1,95 @@
+/*
+ * Material 3 color tokens, using the COPA-DATA brand palette
+ * (signal red + anthracite on clean white surfaces).
+ *
+ * ▸ All brand colors live in this file. To adjust them to the exact
+ *   corporate values, change the --brand-* variables and the scheme below.
+ */
+:root {
+  --brand-red: #c8102e;       /* COPA-DATA red (logo / primary actions) */
+  --brand-anthracite: #3c3c3b; /* COPA-DATA dark grey (text, secondary) */
+  --brand-orange: #fa7d00;    /* totals highlight, as in the Excel template */
+
+  color-scheme: light;
+  --md-ref-typeface-brand: 'Roboto', system-ui, sans-serif;
+  --md-ref-typeface-plain: 'Roboto', system-ui, sans-serif;
+
+  --md-sys-color-primary: #b0102a;
+  --md-sys-color-on-primary: #ffffff;
+  --md-sys-color-primary-container: #ffdad8;
+  --md-sys-color-on-primary-container: #410007;
+  --md-sys-color-secondary: #4d4d4b;
+  --md-sys-color-on-secondary: #ffffff;
+  --md-sys-color-secondary-container: #e5e2df;
+  --md-sys-color-on-secondary-container: #1c1c1a;
+  --md-sys-color-tertiary: #8a4b00;
+  --md-sys-color-on-tertiary: #ffffff;
+  --md-sys-color-tertiary-container: #ffdcc0;
+  --md-sys-color-on-tertiary-container: #2d1600;
+  --md-sys-color-error: #ba1a1a;
+  --md-sys-color-on-error: #ffffff;
+  --md-sys-color-error-container: #ffdad6;
+  --md-sys-color-on-error-container: #410002;
+  --md-sys-color-background: #fafafa;
+  --md-sys-color-on-background: #1c1b1b;
+  --md-sys-color-surface: #fafafa;
+  --md-sys-color-on-surface: #1c1b1b;
+  --md-sys-color-surface-variant: #e7e1e0;
+  --md-sys-color-on-surface-variant: #4a4545;
+  --md-sys-color-surface-container-lowest: #ffffff;
+  --md-sys-color-surface-container-low: #f4f3f3;
+  --md-sys-color-surface-container: #eeeded;
+  --md-sys-color-surface-container-high: #e8e7e7;
+  --md-sys-color-surface-container-highest: #e2e2e1;
+  --md-sys-color-outline: #7b7574;
+  --md-sys-color-outline-variant: #ccc5c4;
+  --md-sys-color-inverse-surface: #313030;
+  --md-sys-color-inverse-on-surface: #f3f0ef;
+  --md-sys-color-inverse-primary: #ffb3b0;
+  --md-sys-color-scrim: #000000;
+  --md-sys-color-shadow: #000000;
+
+  --app-bar-bg: var(--brand-anthracite);
+  --app-bar-fg: #ffffff;
+  --total-accent: #b85c00;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    color-scheme: dark;
+    --md-sys-color-primary: #ffb3b0;
+    --md-sys-color-on-primary: #68000f;
+    --md-sys-color-primary-container: #91001d;
+    --md-sys-color-on-primary-container: #ffdad8;
+    --md-sys-color-secondary: #c9c6c3;
+    --md-sys-color-on-secondary: #31302e;
+    --md-sys-color-secondary-container: #484745;
+    --md-sys-color-on-secondary-container: #e5e2df;
+    --md-sys-color-tertiary: #ffb877;
+    --md-sys-color-on-tertiary: #4a2800;
+    --md-sys-color-tertiary-container: #693c00;
+    --md-sys-color-on-tertiary-container: #ffdcc0;
+    --md-sys-color-error: #ffb4ab;
+    --md-sys-color-on-error: #690005;
+    --md-sys-color-error-container: #93000a;
+    --md-sys-color-on-error-container: #ffdad6;
+    --md-sys-color-background: #141313;
+    --md-sys-color-on-background: #e6e1e1;
+    --md-sys-color-surface: #141313;
+    --md-sys-color-on-surface: #e6e1e1;
+    --md-sys-color-surface-variant: #4a4545;
+    --md-sys-color-on-surface-variant: #cdc5c4;
+    --md-sys-color-surface-container-lowest: #0f0e0e;
+    --md-sys-color-surface-container-low: #1c1b1b;
+    --md-sys-color-surface-container: #201f1f;
+    --md-sys-color-surface-container-high: #2b2a29;
+    --md-sys-color-surface-container-highest: #363434;
+    --md-sys-color-outline: #968f8e;
+    --md-sys-color-outline-variant: #4a4545;
+    --md-sys-color-inverse-surface: #e6e1e1;
+    --md-sys-color-inverse-on-surface: #313030;
+    --md-sys-color-inverse-primary: #b0102a;
+    --app-bar-bg: #201f1f;
+    --total-accent: #ffb877;
+  }
+}
