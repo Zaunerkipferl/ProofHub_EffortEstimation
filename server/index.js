@@ -1,110 +1,39 @@
+// Entry point for running with Node.js (npm start, Docker).
 import express from 'express';
-import multer from 'multer';
 import path from 'node:path';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { REQUIREMENT_TYPES, buildWorkbook, fileName, parseWorkbook } from './xlsx.js';
-import { createStore } from './store.js';
-import { proofhubConfig, updateEstimation, uploadEstimation } from './proofhub.js';
+import { createApp, listen } from './app.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const PORT = Number(process.env.PORT ?? 3000);
 const HOST = process.env.HOST ?? '0.0.0.0';
 const DATA_DIR = path.resolve(process.env.DATA_DIR ?? path.join(root, 'data'));
-
-const store = createStore(path.join(DATA_DIR, 'estimations'));
-const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
-
-const app = express();
-app.disable('x-powered-by');
-app.use(express.json({ limit: '2mb' }));
-
-const XLSX_MIME = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
-const sendXlsx = async (res, est) => {
-  const buf = await buildWorkbook(est);
-  const name = fileName(est);
-  res
-    .type(XLSX_MIME)
-    .set('Content-Disposition', `attachment; filename="${name}"; filename*=UTF-8''${encodeURIComponent(name)}`)
-    .send(buf);
-};
-
-app.get('/api/config', (_req, res) => {
-  res.json({ requirementTypes: REQUIREMENT_TYPES, proofhub: { configured: proofhubConfig().configured } });
-});
-
-// Stateless export: build an xlsx from the posted estimation.
-app.post('/api/export', async (req, res) => sendXlsx(res, req.body));
-
-// Import an existing xlsx (template layout) into the editor.
-app.post('/api/import', upload.single('file'), async (req, res) => {
-  if (!req.file) return res.status(400).json({ error: 'No file uploaded.' });
-  try {
-    res.json(await parseWorkbook(req.file.buffer));
-  } catch (err) {
-    res.status(422).json({ error: `Could not read the Excel file: ${err.message}` });
-  }
-});
-
-// Saved estimations
-app.get('/api/estimations', async (_req, res) => res.json(await store.list()));
-app.post('/api/estimations', async (req, res) => res.status(201).json(await store.create(req.body)));
-app.get('/api/estimations/:id', async (req, res) => {
-  const est = await store.get(req.params.id);
-  est ? res.json(est) : res.status(404).json({ error: 'Not found' });
-});
-app.put('/api/estimations/:id', async (req, res) => {
-  const est = await store.update(req.params.id, req.body);
-  est ? res.json(est) : res.status(404).json({ error: 'Not found' });
-});
-app.delete('/api/estimations/:id', async (req, res) => {
-  await store.remove(req.params.id);
-  res.status(204).end();
-});
-app.get('/api/estimations/:id/xlsx', async (req, res) => {
-  const est = await store.get(req.params.id);
-  est ? sendXlsx(res, est) : res.status(404).json({ error: 'Not found' });
-});
-
-// ProofHub (steps 2 + 3) — routes exist so the UI contract is fixed already.
-app.post('/api/estimations/:id/proofhub', async (req, res) => {
-  res.json(await uploadEstimation(req.params.id, req.body));
-});
-app.put('/api/estimations/:id/proofhub', async (req, res) => {
-  res.json(await updateEstimation(req.params.id));
-});
-
-app.use('/api', (_req, res) => res.status(404).json({ error: 'Not found' }));
-
-// Static frontend (built by `npm run build`)
 const dist = path.join(root, 'dist');
-if (existsSync(dist)) {
-  app.use(express.static(dist, { index: 'index.html', maxAge: '1h' }));
-  app.get('/{*splat}', (_req, res) => res.sendFile(path.join(dist, 'index.html')));
-}
+const { version } = JSON.parse(readFileSync(path.join(root, 'package.json'), 'utf8'));
 
-// Express 5 forwards async errors here.
-app.use((err, _req, res, _next) => {
-  const status = err.status ?? 500;
-  if (status >= 500 && status !== 501) console.error(err);
-  res.status(status).json({ error: err.message ?? 'Internal error' });
+const app = createApp({
+  dataDir: DATA_DIR,
+  version,
+  mountFrontend: existsSync(dist)
+    ? (a) => {
+        a.use(express.static(dist, { index: 'index.html', maxAge: '1h' }));
+        a.get('/{*splat}', (_req, res) => res.sendFile(path.join(dist, 'index.html')));
+      }
+    : undefined,
 });
 
-// Express 5 also invokes this callback with the error when listening fails.
-const server = app.listen(PORT, HOST, (err) => {
-  if (err) return; // handled by the 'error' listener below
+try {
+  await listen(app, PORT, HOST);
   console.log(`Effort Estimation running on http://${HOST === '0.0.0.0' ? 'localhost' : HOST}:${PORT} (data: ${DATA_DIR})`);
-});
-server.on('error', (err) => {
-  if (err.code === 'EADDRINUSE') {
-    console.error(
-      `Port ${PORT} is already used by another program.\n` +
-        'Start the tool on a different port, e.g.\n' +
-        '  PowerShell:  $env:PORT=3080; npm start\n' +
-        '  cmd:         set PORT=3080 && npm start\n' +
-        '  bash:        PORT=3080 npm start',
-    );
-    process.exit(1);
-  }
-  throw err;
-});
+} catch (err) {
+  if (err.code !== 'EADDRINUSE') throw err;
+  console.error(
+    `Port ${PORT} is already used by another program.\n` +
+      'Start the tool on a different port, e.g.\n' +
+      '  PowerShell:  $env:PORT=3080; npm start\n' +
+      '  cmd:         set PORT=3080 && npm start\n' +
+      '  bash:        PORT=3080 npm start',
+  );
+  process.exit(1);
+}

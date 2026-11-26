@@ -20,7 +20,41 @@ app needs no internet access at runtime.
 | 2. Upload the sheet to a ProofHub item | ⏳ placeholder (`server/proofhub.js`) |
 | 3. Update a sheet that is already in ProofHub | ⏳ placeholder (`server/proofhub.js`) |
 
-## Run
+## Windows: installer (recommended for a single PC)
+
+Download `EffortEstimation-Setup-<version>.exe` from the latest successful
+[**Windows build**](../../actions/workflows/windows.yml) run (artifact
+"EffortEstimation-windows"), or build it yourself with `npm run build:windows`.
+
+The installer needs no administrator rights and no Node.js. It installs to
+`%LOCALAPPDATA%\Programs\EffortEstimation` and adds:
+
+- **Start menu → Effort Estimation**: opens the app in the browser (starts it if needed)
+- **Start menu → Stop Effort Estimation**
+- **Start menu → Effort Estimation settings and data**: opens the folder with `config.json`, saved estimations and the log
+- optional **autostart** when you log in to Windows (selected by default), and an optional desktop shortcut
+- an entry in *Settings → Apps* to uninstall (saved estimations are kept)
+
+The app runs in the background without a window, on **http://localhost:3080** by
+default. Settings live in `%LOCALAPPDATA%\EffortEstimation\config.json`:
+
+```json
+{ "port": 3080, "host": "0.0.0.0", "dataDir": "", "proofhubCompany": "", "proofhubApiKey": "" }
+```
+
+After changing it, use *Stop Effort Estimation* and start it again. `dataDir` empty
+means `%LOCALAPPDATA%\EffortEstimation\data`. The log is in `...\EffortEstimation\logs\server.log`.
+
+Notes:
+- The exe is not code-signed, so Windows SmartScreen may warn on first run
+  ("More info" → "Run anyway").
+- To let colleagues open it via `http://<your-pc>:3080`, Windows Firewall must
+  allow incoming connections on that port (Windows asks the first time; this
+  needs administrator approval).
+- Autostart starts the app when you log in, not before login. For a shared
+  server that must run without anyone logged in, use Docker or a Windows service.
+
+## Run with Node.js
 
 You need Node.js 20 or later.
 
@@ -60,7 +94,11 @@ npm test        # xlsx build/parse tests against the reference files in test/fix
 ## Project layout
 
 ```
-server/index.js     Express API + serves the built frontend
+server/app.js       Express API (all routes)
+server/index.js     Entry for Node.js / Docker
+server/windows.js   Entry for the Windows executable (single instance, --open/--stop, config.json)
+scripts/            build-windows.mjs: single executable + NSIS installer
+installer/          NSIS installer script and app icon
 server/xlsx.js      Builds and parses the workbook (template layout, styles, formulas)
 server/store.js     JSON-file storage for saved estimations
 server/proofhub.js  ProofHub integration (steps 2 + 3, placeholder)
@@ -72,6 +110,7 @@ web/theme.css       All theme colors (M3 tokens) — adjust the brand colors her
 
 | Method | Path | Description |
 | --- | --- | --- |
+| `GET` | `/api/health` | App id and version |
 | `GET` | `/api/config` | Requirement types and whether ProofHub is configured |
 | `POST` | `/api/export` | Estimation JSON → `.xlsx` download |
 | `POST` | `/api/import` | Multipart `file` (`.xlsx`) → estimation JSON |

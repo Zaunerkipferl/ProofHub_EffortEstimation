@@ -1,0 +1,105 @@
+name: Windows build
+
+on:
+  push:
+    branches: ['**']
+    paths-ignore: ['**.md']
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Build executable and installer
+        run: npm run build:windows
+
+      - name: Smoke test portable exe
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $env:EE_HOME = Join-Path $env:RUNNER_TEMP 'ee-portable'
+          $exe = Resolve-Path 'build/windows/EffortEstimation.exe'
+          Start-Process $exe
+          $health = $null
+          for ($i = 0; $i -lt 30 -and -not $health; $i++) {
+            Start-Sleep 1
+            try { $health = Invoke-RestMethod http://127.0.0.1:3080/api/health } catch {}
+          }
+          if ($health.app -ne 'effort-estimation') { Get-Content "$env:EE_HOME/logs/server.log" -ErrorAction SilentlyContinue; throw 'App did not start' }
+          "health: $($health | ConvertTo-Json -Compress)"
+
+          $page = Invoke-WebRequest http://127.0.0.1:3080/ -UseBasicParsing
+          if ($page.Content -notmatch '<title>Effort Estimation</title>') { throw 'UI not served' }
+
+          $body = '{"customer":"CI","project":"Windows","requirements":[{"puc":"x","estimate":2}]}'
+          $xlsx = Join-Path $env:RUNNER_TEMP 'export.xlsx'
+          Invoke-WebRequest http://127.0.0.1:3080/api/export -Method Post -ContentType 'application/json' -Body $body -OutFile $xlsx -UseBasicParsing
+          $magic = [System.Text.Encoding]::ASCII.GetString([System.IO.File]::ReadAllBytes($xlsx)[0..1])
+          if ($magic -ne 'PK') { throw 'Export is not an xlsx file' }
+          "export: OK ($((Get-Item $xlsx).Length) bytes)"
+
+          # A second launch must detect the running instance and exit.
+          $p = Start-Process $exe -PassThru -Wait
+          "second launch exit code: $($p.ExitCode)"
+
+          Start-Process $exe -ArgumentList '--stop' -Wait
+          Start-Sleep 2
+          $stillUp = $true
+          try { Invoke-RestMethod http://127.0.0.1:3080/api/health -TimeoutSec 2 | Out-Null } catch { $stillUp = $false }
+          if ($stillUp) { throw '--stop did not stop the app' }
+          'stop: OK'
+          Get-Content "$env:EE_HOME/logs/server.log"
+
+      - name: Test installer (silent install / uninstall)
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Remove-Item Env:EE_HOME -ErrorAction SilentlyContinue
+          $setup = Get-ChildItem build/windows/EffortEstimation-Setup-*.exe | Select-Object -First 1
+          Start-Process $setup.FullName -ArgumentList '/S' -Wait
+          $dir = Join-Path $env:LOCALAPPDATA 'Programs\EffortEstimation'
+          if (-not (Test-Path "$dir\EffortEstimation.exe")) { throw 'exe not installed' }
+          $run = Get-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run' -Name EffortEstimation
+          "autostart entry: $($run.EffortEstimation)"
+          $lnk = Join-Path $env:APPDATA 'Microsoft\Windows\Start Menu\Programs\Effort Estimation\Effort Estimation.lnk'
+          if (-not (Test-Path $lnk)) { throw 'Start menu shortcut missing' }
+
+          # The installer starts the app in the background.
+          $health = $null
+          for ($i = 0; $i -lt 30 -and -not $health; $i++) {
+            Start-Sleep 1
+            try { $health = Invoke-RestMethod http://127.0.0.1:3080/api/health } catch {}
+          }
+          if ($health.app -ne 'effort-estimation') { throw 'Installed app did not start' }
+          "installed app running: $($health.version)"
+
+          Start-Process "$dir\Uninstall.exe" -ArgumentList '/S', "_?=$dir" -Wait
+          Start-Sleep 2
+          $left = Get-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run' -Name EffortEstimation -ErrorAction SilentlyContinue
+          if ($left) { throw 'autostart entry not removed' }
+          $stillUp = $true
+          try { Invoke-RestMethod http://127.0.0.1:3080/api/health -TimeoutSec 2 | Out-Null } catch { $stillUp = $false }
+          if ($stillUp) { throw 'app still running after uninstall' }
+          'uninstall: OK'
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: EffortEstimation-windows
+          path: |
+            build/windows/EffortEstimation-Setup-*.exe
+            build/windows/EffortEstimation.exe
+          if-no-files-found: error
