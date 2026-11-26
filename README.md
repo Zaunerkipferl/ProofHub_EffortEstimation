@@ -6,7 +6,7 @@ the reference template: sheet `REQ`, the requirement table, the totals with
 formulas, the effort factor and the delivery time.
 
 The UI uses [Material Web](https://github.com/material-components/material-web)
-(Material 3) with a COPA-DATA color theme. Fonts and icons are bundled, so the
+(Material 3) with the COPA-DATA website palette (navy #202d4f, orange #f04e23) and fonts (Ubuntu, Noto Sans). Fonts and icons are bundled, so the
 app needs no internet access at runtime.
 
 ## Features

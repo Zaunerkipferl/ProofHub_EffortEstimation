@@ -1,5 +1,7 @@
-import '@fontsource/roboto/400.css';
-import '@fontsource/roboto/500.css';
+import '@fontsource/noto-sans/400.css';
+import '@fontsource/noto-sans/500.css';
+import '@fontsource/ubuntu/400.css';
+import '@fontsource/ubuntu/500.css';
 import 'material-symbols/outlined.css';
 import '@material/web/button/filled-button.js';
 import '@material/web/button/filled-tonal-button.js';

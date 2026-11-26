@@ -23,7 +23,7 @@ h1, h2, p { margin: 0; }
   padding: 0 8px 0 16px;
   background: var(--app-bar-bg);
   color: var(--app-bar-fg);
-  border-bottom: 4px solid var(--brand-red);
+  border-bottom: 4px solid var(--app-bar-accent);
   --md-icon-button-icon-color: var(--app-bar-fg);
   --md-icon-button-hover-icon-color: var(--app-bar-fg);
   --md-icon-button-focus-icon-color: var(--app-bar-fg);
@@ -34,7 +34,7 @@ h1, h2, p { margin: 0; }
 .brand { display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; }
 .brand-mark {
   width: 28px; height: 28px; border-radius: 6px; flex: none;
-  background: var(--brand-red) url('/favicon.svg') center / cover;
+  background: var(--brand-navy) url('/favicon.svg') center / cover;
 }
 .brand-title { font: 500 1.25rem/1 var(--md-ref-typeface-brand); letter-spacing: 0.01em; white-space: nowrap; }
 .app-bar-actions { display: flex; gap: 4px; }
@@ -212,3 +212,20 @@ md-outlined-select { min-width: 0; }
   }
   .brand-title { font-size: 1.05rem; }
 }
+
+/* ---------- Brand call-to-action (orange, as on copadata.com) ---------- */
+md-filled-button.cta {
+  --md-filled-button-container-color: var(--cta-bg);
+  --md-filled-button-label-text-color: var(--cta-fg);
+  --md-filled-button-hover-label-text-color: var(--cta-fg);
+  --md-filled-button-focus-label-text-color: var(--cta-fg);
+  --md-filled-button-pressed-label-text-color: var(--cta-fg);
+  --md-filled-button-icon-color: var(--cta-fg);
+  --md-filled-button-hover-icon-color: var(--cta-fg);
+  --md-filled-button-focus-icon-color: var(--cta-fg);
+  --md-filled-button-pressed-icon-color: var(--cta-fg);
+  --md-filled-button-hover-state-layer-color: var(--cta-fg);
+  --md-filled-button-pressed-state-layer-color: var(--cta-fg);
+}
+/* Headings use Ubuntu, like the website */
+h1, h2, .brand-title, .stat-value { font-family: var(--md-ref-typeface-brand); }
