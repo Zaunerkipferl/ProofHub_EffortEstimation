@@ -23,9 +23,17 @@ app needs no internet access at runtime.
 
 ## Windows: installer (recommended for a single PC)
 
-Download `EffortEstimation-Setup-<version>.exe` from the latest successful
-[**Windows build**](../../actions/workflows/windows.yml) run (artifact
-"EffortEstimation-windows"), or build it yourself with `npm run build:windows`.
+Download `EffortEstimation-Setup-<version>.exe` from the repository's
+[**Releases**](../../releases) page. (`build/` is not in Git: installers are
+generated files.)
+
+To publish a new version: raise `version` in `package.json`, push, then on
+GitHub click *Releases → Draft a new release*, create a tag such as `v0.2.0`
+and publish. The [Windows build](../../actions/workflows/windows.yml) workflow
+then builds and tests the installer on Windows and attaches it to the release
+(a few minutes). Every push also uploads the installer as a workflow artifact
+("EffortEstimation-windows", kept 90 days), and `npm run build:windows` builds
+it locally into `build/windows/`.
 
 The installer needs no administrator rights and no Node.js. It installs to
 `%LOCALAPPDATA%\Programs\EffortEstimation` and adds:
