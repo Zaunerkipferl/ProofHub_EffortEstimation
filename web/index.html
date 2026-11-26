@@ -5,6 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Effort Estimation</title>
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <script>
+      // Apply the stored theme (or the OS setting) before first paint.
+      (function () {
+        var t = null;
+        try { t = localStorage.getItem('ee.theme'); } catch (e) {}
+        if (t !== 'light' && t !== 'dark') t = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        document.documentElement.dataset.theme = t;
+      })();
+    </script>
   </head>
   <body>
     <header class="app-bar">
@@ -16,6 +25,7 @@
         <span class="brand-title">Effort Estimation</span>
       </div>
       <div class="app-bar-actions">
+        <md-icon-button id="themeBtn" title="Switch to dark mode" aria-label="Switch to dark mode"><md-icon>dark_mode</md-icon></md-icon-button>
         <md-icon-button id="newBtn" title="New estimation" aria-label="New estimation"><md-icon>note_add</md-icon></md-icon-button>
         <md-icon-button id="importBtn" title="Import Excel file" aria-label="Import Excel file"><md-icon>upload_file</md-icon></md-icon-button>
         <input type="file" id="importInput" accept=".xlsx" hidden />
@@ -26,6 +36,7 @@
       <aside class="sidebar" id="sidebar">
         <div class="sidebar-head">
           <h2 class="md-typescale-title-medium">Saved estimations</h2>
+          <p class="md-typescale-body-small muted">Most recently edited first</p>
         </div>
         <md-outlined-text-field id="search" class="search" placeholder="Search" type="search">
           <md-icon slot="leading-icon">search</md-icon>

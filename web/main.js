@@ -33,6 +33,73 @@ let saved = [];
 let state = blankEstimation();
 let dirty = false;
 
+// ---------------------------------------------------------------------------
+// Browser memory (per browser/device): theme, last opened estimation and an
+// unsaved draft. Storage can be blocked (private mode, policies), so every
+// access is guarded and the app works without it.
+// ---------------------------------------------------------------------------
+const KEYS = { theme: 'ee.theme', lastOpen: 'ee.lastOpenId', draft: 'ee.draft' };
+const memory = {
+  get(key) {
+    try { return localStorage.getItem(key); } catch { return null; }
+  },
+  set(key, value) {
+    try {
+      if (value === null || value === undefined) localStorage.removeItem(key);
+      else localStorage.setItem(key, value);
+    } catch { /* storage unavailable */ }
+  },
+};
+
+function readDraft() {
+  try {
+    const draft = JSON.parse(memory.get(KEYS.draft));
+    return draft?.state?.requirements ? draft : null;
+  } catch {
+    return null;
+  }
+}
+
+function saveDraftNow() {
+  clearTimeout(draftTimer);
+  const { requirements, ...rest } = state;
+  memory.set(KEYS.draft, JSON.stringify({
+    savedAt: new Date().toISOString(),
+    state: { ...rest, requirements: requirements.map(({ key, ...r }) => r) },
+  }));
+}
+
+let draftTimer;
+function scheduleDraftSave() {
+  clearTimeout(draftTimer);
+  draftTimer = setTimeout(() => {
+    saveDraftNow();
+    renderSaved();
+  }, 400);
+}
+
+function clearDraft() {
+  clearTimeout(draftTimer);
+  memory.set(KEYS.draft, null);
+}
+
+// Theme ---------------------------------------------------------------------
+const systemDark = matchMedia('(prefers-color-scheme: dark)');
+function currentTheme() {
+  return document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light';
+}
+function applyTheme(theme) {
+  document.documentElement.dataset.theme = theme;
+  const next = theme === 'dark' ? 'light' : 'dark';
+  const btn = $('themeBtn');
+  btn.querySelector('md-icon').textContent = theme === 'dark' ? 'light_mode' : 'dark_mode';
+  btn.title = btn.ariaLabel = `Switch to ${next} mode`;
+}
+// Follow the OS setting until the user picks a mode explicitly.
+systemDark.addEventListener('change', (e) => {
+  if (!memory.get(KEYS.theme)) applyTheme(e.matches ? 'dark' : 'light');
+});
+
 function blankEstimation() {
   // Mirrors the defaults of EffortEstimation_CUSTOMER_PROJECT.xlsx
   return {
@@ -125,7 +192,16 @@ function confirmDialog(headline, text, okLabel = 'OK') {
 
 function markDirty(value = true) {
   dirty = value;
+  if (dirty) scheduleDraftSave();
+  else clearDraft();
   renderStatus();
+}
+
+function when(iso) {
+  const d = new Date(iso);
+  const time = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  if (d.toDateString() === new Date().toDateString()) return `today, ${time}`;
+  return `${d.toLocaleDateString()}, ${time}`;
 }
 
 // ---------------------------------------------------------------------------
@@ -256,19 +332,24 @@ function renderSaved() {
   const q = $('search').value.trim().toLowerCase();
   const items = saved.filter((s) => !q || `${s.customer} ${s.project}`.toLowerCase().includes(q));
   const list = $('savedList');
+  const draft = readDraft();
   list.replaceChildren(
     ...items.map((s) => {
       const li = document.createElement('md-list-item');
       li.type = 'button';
       li.dataset.id = s.id;
       if (s.id === state.id) li.setAttribute('aria-current', 'true');
+      const hasDraft = draft?.state?.id === s.id;
+      const icon = hasDraft ? 'edit_note' : s.proofhub ? 'cloud_done' : 'description';
       li.innerHTML = `
-        <md-icon slot="start">${s.proofhub ? 'cloud_done' : 'description'}</md-icon>
+        <md-icon slot="start">${icon}</md-icon>
         <div slot="headline"></div>
         <div slot="supporting-text"></div>`;
       li.querySelector('[slot=headline]').textContent = [s.customer, s.project].filter(Boolean).join(' - ') || 'Untitled';
-      li.querySelector('[slot=supporting-text]').textContent =
-        `${fmt(s.totalDays)} days · ${new Date(s.updatedAt).toLocaleDateString()}`;
+      li.querySelector('[slot=supporting-text]').textContent = hasDraft
+        ? `Unsaved changes · ${when(draft.savedAt)}`
+        : `${fmt(s.totalDays)} days · edited ${when(s.updatedAt)}`;
+      li.title = `Last saved ${new Date(s.updatedAt).toLocaleString()}`;
       return li;
     }),
   );
@@ -307,6 +388,7 @@ async function save() {
     state.id = record.id;
     state.updatedAt = record.updatedAt;
     state.proofhub = record.proofhub;
+    memory.set(KEYS.lastOpen, record.id);
     markDirty(false);
     await loadSaved();
     toast('Estimation saved.');
@@ -344,7 +426,8 @@ async function guardUnsaved() {
 async function newEstimation() {
   if (!(await guardUnsaved())) return;
   state = blankEstimation();
-  dirty = false;
+  memory.set(KEYS.lastOpen, null);
+  markDirty(false);
   renderAll();
   closeSidebar();
   $('customer').focus();
@@ -356,7 +439,8 @@ async function openSaved(id) {
   try {
     const record = await api(`/api/estimations/${id}`);
     state = fromRecord(record);
-    dirty = false;
+    memory.set(KEYS.lastOpen, record.id);
+    markDirty(false);
     renderAll();
     closeSidebar();
   } catch (err) {
@@ -466,6 +550,13 @@ reqList.addEventListener('click', (e) => {
   reqList.querySelector(`.req-row[data-key="${reqs[j].key}"] [data-action="${action}"]`)?.focus();
 });
 
+applyTheme(currentTheme());
+$('themeBtn').addEventListener('click', () => {
+  const theme = currentTheme() === 'dark' ? 'light' : 'dark';
+  memory.set(KEYS.theme, theme);
+  applyTheme(theme);
+});
+
 $('addReqBtn').addEventListener('click', addRequirement);
 $('saveBtn').addEventListener('click', save);
 $('exportBtn').addEventListener('click', exportXlsx);
@@ -493,8 +584,9 @@ document.addEventListener('keydown', (e) => {
     save();
   }
 });
-window.addEventListener('beforeunload', (e) => {
-  if (dirty) e.preventDefault();
+// Unsaved work is kept as a draft in this browser, so no "leave page?" prompt.
+window.addEventListener('pagehide', () => {
+  if (dirty) saveDraftNow();
 });
 
 // ---------------------------------------------------------------------------
@@ -510,6 +602,26 @@ window.addEventListener('beforeunload', (e) => {
   } catch (err) {
     toast(`Server not reachable: ${err.message}`, true);
   }
+  await restoreSession();
   renderAll();
   loadSaved();
 })();
+
+/** Restores unsaved work, otherwise reopens the estimation used last time. */
+async function restoreSession() {
+  const draft = readDraft();
+  if (draft) {
+    const { requirements, ...rest } = draft.state;
+    state = { ...blankEstimation(), ...rest, requirements: requirements.map((r) => req(r)) };
+    dirty = true;
+    toast(`Restored your unsaved changes from ${when(draft.savedAt)}.`);
+    return;
+  }
+  const lastId = memory.get(KEYS.lastOpen);
+  if (!lastId) return;
+  try {
+    state = fromRecord(await api(`/api/estimations/${lastId}`));
+  } catch {
+    memory.set(KEYS.lastOpen, null); // deleted or unreachable: start fresh
+  }
+}

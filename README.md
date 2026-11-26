@@ -16,6 +16,7 @@ app needs no internet access at runtime.
 | 1. Create an estimation from scratch and export it as `.xlsx` | ✅ done |
 | Save estimations on the server, reopen and edit them, search the list | ✅ done |
 | Import an existing estimation `.xlsx` into the editor | ✅ done |
+| Light/dark switch; remembers the mode, the last opened estimation and unsaved edits (per browser) | ✅ done |
 | 2. Upload the sheet to a ProofHub item | ⏳ placeholder (`server/proofhub.js`) |
 | 3. Update a sheet that is already in ProofHub | ⏳ placeholder (`server/proofhub.js`) |
 
