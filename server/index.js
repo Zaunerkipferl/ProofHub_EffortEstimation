@@ -90,7 +90,9 @@ app.use((err, _req, res, _next) => {
   res.status(status).json({ error: err.message ?? 'Internal error' });
 });
 
-const server = app.listen(PORT, HOST, () => {
+// Express 5 also invokes this callback with the error when listening fails.
+const server = app.listen(PORT, HOST, (err) => {
+  if (err) return; // handled by the 'error' listener below
   console.log(`Effort Estimation running on http://${HOST === '0.0.0.0' ? 'localhost' : HOST}:${PORT} (data: ${DATA_DIR})`);
 });
 server.on('error', (err) => {
