@@ -90,6 +90,19 @@ app.use((err, _req, res, _next) => {
   res.status(status).json({ error: err.message ?? 'Internal error' });
 });
 
-app.listen(PORT, HOST, () => {
-  console.log(`Effort Estimation running on http://${HOST}:${PORT} (data: ${DATA_DIR})`);
+const server = app.listen(PORT, HOST, () => {
+  console.log(`Effort Estimation running on http://${HOST === '0.0.0.0' ? 'localhost' : HOST}:${PORT} (data: ${DATA_DIR})`);
+});
+server.on('error', (err) => {
+  if (err.code === 'EADDRINUSE') {
+    console.error(
+      `Port ${PORT} is already used by another program.\n` +
+        'Start the tool on a different port, e.g.\n' +
+        '  PowerShell:  $env:PORT=3080; npm start\n' +
+        '  cmd:         set PORT=3080 && npm start\n' +
+        '  bash:        PORT=3080 npm start',
+    );
+    process.exit(1);
+  }
+  throw err;
 });
