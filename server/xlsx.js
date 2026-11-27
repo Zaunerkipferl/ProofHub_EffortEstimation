@@ -102,7 +102,7 @@ export async function buildWorkbook(input) {
     'Name of the PUC',
     'Functional',
     'A one sentence text description of the requirement.',
-    'Time estimated developed by COPA-DATA in Days',
+    'Estimated development time in days',
   ];
   headers.forEach((text, i) => {
     const col = String.fromCharCode(65 + i);

@@ -114,7 +114,7 @@ function blankEstimation() {
     updatedAt: null,
     requirements: [
       req({ puc: 'Development Concept' }),
-      req({ puc: 'General', description: 'zenon version: 15\nOperating System: Windows\nnative:' }),
+      req({ puc: 'General', description: 'Version:\nOperating System: Windows' }),
       req({ puc: 'Testing', description: 'basic functionality testing without any test documentation', estimate: 1 }),
       req({ puc: 'Documentation', description: 'release notes only in English with short usage description', estimate: 0.5 }),
     ],

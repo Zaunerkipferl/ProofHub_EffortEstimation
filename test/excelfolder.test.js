@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { createSettings, excelPathFor, safeName, suggestedFolder, writeExcelFile } from '../server/excelfolder.js';
 
-const base = path.join(tmpdir(), 'OneDrive - Ing. Punzenberger COPA-DATA GmbH', 'Documents', 'Projekte');
+const base = path.join(tmpdir(), 'OneDrive - Example Company GmbH', 'Documents', 'Projekte');
 
 test('builds <folder>/<customer>/<project>/EffortEstimation_<customer>_<project>.xlsx', () => {
   const cfg = { excelFolder: base, subfolderPattern: '{customer}/{project}' };
@@ -40,7 +40,7 @@ test('customer/project names cannot escape the folder or break Windows paths', (
 });
 
 test('suggests the OneDrive for Business Documents\\Projekte folder', () => {
-  const od = path.join(tmpdir(), 'OneDrive - Ing. Punzenberger COPA-DATA GmbH');
+  const od = path.join(tmpdir(), 'OneDrive - Example Company GmbH');
   assert.equal(suggestedFolder({ OneDriveCommercial: od, OneDrive: '/x' }), path.join(od, 'Documents', 'Projekte'));
   assert.equal(suggestedFolder({ OneDrive: od }), path.join(od, 'Documents', 'Projekte'));
 });

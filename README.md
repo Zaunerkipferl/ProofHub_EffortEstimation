@@ -1,12 +1,12 @@
 # Effort Estimation
 
-A web tool for your internal network. It creates COPA-DATA effort estimation
+A web tool for your internal network. It creates effort estimation
 sheets (`EffortEstimation_<Customer>_<Project>.xlsx`) with the same layout as
 the reference template: sheet `REQ`, the requirement table, the totals with
 formulas, the effort factor and the delivery time.
 
 The UI uses [Material Web](https://github.com/material-components/material-web)
-(Material 3) with the COPA-DATA website palette (navy #202d4f, orange #f04e23) and fonts (Ubuntu, Noto Sans). Fonts and icons are bundled, so the
+(Material 3) with a navy/orange brand palette (navy #202d4f, orange #f04e23) and fonts (Ubuntu, Noto Sans). Fonts and icons are bundled, so the
 app needs no internet access at runtime.
 
 ## Features

@@ -265,7 +265,7 @@ md-outlined-select { min-width: 0; }
   .brand-title { font-size: 1.05rem; }
 }
 
-/* ---------- Brand call-to-action (orange, as on copadata.com) ---------- */
+/* ---------- Brand call-to-action (orange) ---------- */
 md-filled-button.cta {
   --md-filled-button-container-color: var(--cta-bg);
   --md-filled-button-label-text-color: var(--cta-fg);
